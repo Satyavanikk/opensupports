@@ -3,7 +3,8 @@ name: Deploy OpenSupports
 on:
   push:
     branches:
-      - main
+      - main  # Automatically triggers on push to the 'main' branch
+  workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
   deploy:
