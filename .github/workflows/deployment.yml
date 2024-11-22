@@ -14,30 +14,14 @@ jobs:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Configure AWS CLI
-      run: |
-        mkdir -p ~/.aws
-        echo "[default]" > ~/.aws/credentials
-        echo "aws_access_key_id=${{ secrets.AWS_ACCESS_KEY_ID }}" >> ~/.aws/credentials
-        echo "aws_secret_access_key=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> ~/.aws/credentials
-        echo "[default]" > ~/.aws/config
-        echo "region=${{ secrets.AWS_REGION }}" >> ~/.aws/config
-
     - name: Compress Application Files
       run: zip -r app.zip ./*
 
-    - name: Upload Application Files to EC2
+    - name: Upload and Deploy Application Files to EC2
       run: |
-        aws ssm send-command \
-          --document-name "AWS-RunShellScript" \
-          --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
-          --parameters '{"commands":["sudo rm -rf /var/www/html/*", "mkdir -p /tmp/deploy", "echo \"$ZIP_CONTENT\" > /tmp/deploy/app.zip", "sudo unzip /tmp/deploy/app.zip -d /var/www/html/"]}' \
-          --comment "Deploy OpenSupports application"
-
-    - name: Restart Web Server
-      run: |
-        aws ssm send-command \
-          --document-name "AWS-RunShellScript" \
-          --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
-          --parameters '{"commands":["sudo systemctl restart apache2 || sudo systemctl restart nginx"]}' \
-          --comment "Restart web server"
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo rm -rf /var/www/html/* && sudo mkdir -p /tmp/deploy"
+        scp -o StrictHostKeyChecking=no app.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/deploy/app.zip
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo unzip /tmp/deploy/app.zip -d /var/www/html/"
