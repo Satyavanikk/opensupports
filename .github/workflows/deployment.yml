@@ -3,7 +3,7 @@ name: Deploy OpenSupports
 on:
   push:
     branches:
-      - master  # Automatically triggers on push to the 'main' branch
+      - main  # Automatically triggers on push to the 'main' branch
   workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
@@ -26,18 +26,22 @@ jobs:
     - name: Compress Application Files
       run: zip -r app.zip ./*
 
-    - name: Upload Application Files to EC2
+    - name: Upload and Deploy Application Files to EC2
       run: |
-        aws ssm send-command \
-          --document-name "AWS-RunShellScript" \
-          --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
-          --parameters '{"commands":["sudo rm -rf /var/www/html/*", "mkdir -p /tmp/deploy", "echo \"$ZIP_CONTENT\" > /tmp/deploy/app.zip", "sudo unzip /tmp/deploy/app.zip -d /var/www/html/"]}' \
-          --comment "Deploy OpenSupports application"
+        mkdir -p ~/.ssh
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+        chmod 600 ~/.ssh/id_rsa
+
+        # Upload application files to the EC2 instance
+        scp -o StrictHostKeyChecking=no app.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/app.zip
+
+        # Connect to the EC2 instance and deploy the application
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
+          sudo rm -rf /var/www/html/*
+          sudo mkdir -p /tmp/deploy
+          sudo unzip /tmp/app.zip -d /var/www/html/
+        EOF
 
     - name: Restart Web Server
       run: |
-        aws ssm send-command \
-          --document-name "AWS-RunShellScript" \
-          --targets "Key=instanceids,Values=${{ secrets.EC2_INSTANCE_ID }}" \
-          --parameters '{"commands":["sudo systemctl restart apache2 || sudo systemctl restart nginx"]}' \
-          --comment "Restart web server"
+        ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} "sudo systemctl restart apache2 || sudo systemctl restart nginx"
