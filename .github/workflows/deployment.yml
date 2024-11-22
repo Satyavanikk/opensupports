@@ -3,7 +3,7 @@ name: Deploy OpenSupports
 on:
   push:
     branches:
-      - main  # Automatically triggers on push to the 'main' branch
+      - master  # Automatically triggers on push to the 'master' branch
   workflow_dispatch:  # Allows manual triggering of the workflow
 
 jobs:
@@ -29,8 +29,8 @@ jobs:
     - name: Upload and Deploy Application Files to EC2
       run: |
         mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
+        echo "${{ secrets.EC2_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+        chmod 600 ~/.ssh/id_ed25519
 
         # Upload application files to the EC2 instance
         scp -o StrictHostKeyChecking=no app.zip ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}:/tmp/app.zip
