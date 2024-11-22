@@ -1,6 +1,6 @@
 # Use the fauria/lamp base image
 FROM fauria/lamp
-MAINTAINER Ivan Diaz <ivan@opensupports.com>
+MAINTAINER satyavani Kommula <satyavani1994@gmail.com>
 
 # Update the package list and install necessary dependencies
 RUN apt-get update && \
